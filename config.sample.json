@@ -1,0 +1,5 @@
+{
+    "token":"TG BOT token",
+    "db":"数据库名.db",
+    "proxy":"http://example.com:port代理地址,无需则留空"
+}

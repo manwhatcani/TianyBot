@@ -1,0 +1,5 @@
+config.json
+.vscode/settings.json
+test.db
+main.exe
+*_test.go
