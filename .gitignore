@@ -3,3 +3,4 @@ config.json
 test.db
 main.exe
 *_test.go
+tests/*

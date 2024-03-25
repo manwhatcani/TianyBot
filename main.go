@@ -7,11 +7,17 @@ import (
 	"regexp"
 	"strings"
 	"tgbot/db"
+	"tgbot/model"
 	"tgbot/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/samber/lo"
 )
+
+type GidUrl struct {
+	gid string
+	url string
+}
 
 func command(com string) string {
 	// Extract the command from the Message.
@@ -31,6 +37,11 @@ func command(com string) string {
 
 func main() {
 	config := utils.GetConfig()
+
+	//初始化数据库
+	db.InitDB(config.DB_PATH)
+	//关闭数据库连接
+	defer db.CloseDB()
 
 	var proxyStr string
 	if config.PROXY != "" {
@@ -74,7 +85,7 @@ func main() {
 		if update.Message.IsCommand() { // ignore any non-command Messages
 			msg.Text = command(update.Message.Command())
 		} else {
-			isDownloadMsg(update.Message)
+			msg.Text = isDownloadMsg(update.Message)
 		}
 		// if lo.IsEmpty(1) {
 
@@ -82,7 +93,7 @@ func main() {
 		// }
 		// log.Printf(update.Message.Text)
 		if msg.Text != "" {
-			utils.Mylog(msg)
+			utils.Mylog(msg) //调试用
 			continue
 		}
 		if _, err := bot.Send(msg); err != nil {
@@ -92,31 +103,45 @@ func main() {
 }
 
 // 检查是否存在下载链接1
-func isDownloadMsg(msg *tgbotapi.Message) {
+func isDownloadMsg(msg *tgbotapi.Message) string {
 	//磁链？
 	if !lo.IsEmpty(msg.Caption) {
 		links := getAllMatchLink(msg.Caption)
 		utils.Mylog(links)
 		newLinks := getAllNewLink(links)
 		utils.Mylog(newLinks)
-		// downloadAll(newLinks);
+		results := downloadAll(newLinks)
+		gids := lo.Map(results, func(link model.Link, _ int) string {
+			return link.Gid
+		})
+		return "检测到链接，已添加下载: " + strings.Join(gids, ",")
 	}
+	return "没有检测到链接，跳过。。。"
+}
+
+func downloadAll(links []string) []model.Link {
+
+	var gidUrls []model.Link
+	for _, url := range links {
+		gidUrls = append(gidUrls, model.Link{Gid: utils.SendAria2(url), Url: url, DownloadFlag: true})
+	}
+	db.CreateLinks(gidUrls)
+
+	return gidUrls
+
 }
 
 // 查询数据库，返回所有新的链接
 func getAllNewLink(links []string) []string {
-	db.Init()
-	db.CreateTable()
-	db.GetUser()
 	//TODO
 	var newLinks []string
-	db.GetNotDownloadLink(links)
+	newLinks, _ = db.GetNotDownloadLink(links)
 	return newLinks
 }
 
 // 使用正则获取所有的磁链
 func getAllMatchLink(caption string) []string {
-	re, err := regexp.Compile("(magnet:.*?)\n")
+	re, err := regexp.Compile(`(magnet:\?xt=urn:btih:)[0-9a-fA-F]{40}`)
 	if err != nil {
 		log.Panic(err)
 	}

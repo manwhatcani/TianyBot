@@ -1,12 +1,10 @@
 package utils
 
 import (
-	"fmt"
-
 	"github.com/siku2/arigo"
 )
 
-func SendAria2(url string) {
+func SendAria2(url string) string {
 	c, err := arigo.Dial("ws://localhost:16800/jsonrpc", "159357")
 	if err != nil {
 		panic(err)
@@ -16,6 +14,6 @@ func SendAria2(url string) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Print("下完了")
 	c.Close()
+	return gid.GID
 }
